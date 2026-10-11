@@ -1,0 +1,6 @@
+# Misaki Gothic font (not redistributed here; see MISAKI_COPYRIGHT.txt)
+misaki_gothic.ttf
+__pycache__/
+*.bin
+logs/
+*.log
