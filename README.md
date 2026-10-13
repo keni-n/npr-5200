@@ -1,5 +1,7 @@
 # Ricom NPR-5200 紙テープパンチ制御ツール
 
+**日本語** | [English](README.en.md)
+
 Ricom NPR-5200 紙テープパンチャ/リーダを、FT232R などの USB シリアルアダプタ経由で PC から制御する Python スクリプト集です。
 
 ![NPR-5200 本体](images/body.jpg)
