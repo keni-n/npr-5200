@@ -126,7 +126,7 @@ Send `0x00`. If a machine waiting at 4800 receives a `0x00` sent at 9600, it pun
 
 ### About SW3 and SW4
 
-All four combinations were tried, but there was no change in the baud rate, the format (parity), the handling of DC codes, or the punching of special codes (NUL, BEL, BS, HT, LF, VT, FF, CR, SUB, ESC, SP, DEL, 0x80, 0xFF). They may be related to the reader, but the reader has not been tested.
+All four combinations were tried, but there was no change in the baud rate, the format (parity), the handling of DC codes, or the punching of special codes (NUL, BEL, BS, HT, LF, VT, FF, CR, SUB, ESC, SP, DEL, 0x80, 0xFF). Whether these settings change anything when reading with the reader has not been checked.
 
 ## 3. Front panel
 
@@ -138,10 +138,27 @@ The front panel has the buttons FEED, LINE, COPY, EIA, RANDOM and ISO (each with
 
 There is a switch labeled "TNE ON/OFF" on the rear panel, but its meaning has not been confirmed.
 
-## 5. Unconfirmed items
+## 5. Tape reader
+
+### How to read
+
+Press the LINE button to go OFFLINE, set the paper tape in the reader, and press the LINE button to go ONLINE. The data that is read is then output to the serial port. It can be received if the machine's pin 2 (the machine's TXD) is connected to the PC's RXD. Use `reader.py` to receive it.
+
+### Confirmed results
+
+Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON` and the StarTech crossover cable.
+
+- The 263 bytes of test data that were punched (the 7 bytes `HELLO` + CR/LF followed by the 256 bytes `0x00` to `0xFF`) were read back without losing a byte and in the same order. This includes `0x11` to `0x14` and `0x93`.
+- The data that was read had 15 `0x00` bytes before it and 2 `0x00` bytes after it. When punching, it was 10 before and 35 after. The reason for the difference has not been checked.
+- A single `0x00` byte may arrive right after start. It is a signal from opening the port and is not part of the tape.
+- When `probe.py status` was run during reading, a single `0x00` was mixed into the received data (between `0xe4` and `0xe5`). Opening the port may be the cause, but this has not been checked. Do not open the port with other tools while reading.
+- If XON/XOFF is enabled, `0x11` and `0x13` in the data do not appear, so it is disabled for reading.
+
+## 6. Unconfirmed items
 
 - The function of SW3 and SW4
 - The unconfirmed baud rate combinations
-- Operation of the tape reader (to read, the machine's pin 2 must be connected to the PC's RXD)
+- The reading speed of the reader, reading in EIA and ISO modes, and reading with a different baud rate or DIP switch setting
+- The reason the number of `0x00` bytes before and after the data that was read differs from what was punched
 - The exact amount of data that overflows the buffer (200 bytes at full speed was fine, but kilobytes overflowed)
 - ESC (0x1B) being dropped once (it could not be reproduced)

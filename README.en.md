@@ -126,6 +126,24 @@ The result of punching "HELLO":
 - By default the output is flipped upside down, because the text came out upside down on the actual machine. Use `--no-flip` to turn this off.
 - Other options: `--scale` (enlarge), `--gap` (character spacing), `--reverse`, `--half-kana` (do not convert half-width kana to full-width), `--font` (specify the font).
 
+### reader.py: read the tape reader
+
+Receives the data that the reader reads from the serial port and displays it. It only receives and sends nothing to the machine.
+
+```
+python3 reader.py                  # wait for data
+python3 reader.py -o tape.bin      # also save the received bytes as they are
+```
+
+The procedure is as follows.
+
+1. Start `reader.py` first.
+2. Press the LINE button on the machine to go OFFLINE, and set the paper tape in the reader.
+3. Press the LINE button to go ONLINE. The data that is read is displayed 16 bytes per line, with the position, hexadecimal and ASCII.
+4. It ends 10 seconds after the last data is received (change with `--idle`; 0 waits until Ctrl-C).
+
+XON/XOFF is disabled. If it were enabled, `0x11` and `0x13` in the data would not appear in the result. Bytes that arrive in the first second after start (a signal from opening the port) are displayed separately as "data right after start" and are not counted in the received bytes.
+
 ### probe.py: investigation tool
 
 Used to investigate the DIP switches and the baud rate. The subcommands are `status`, `sweep`, `guided`, `dipbaud`, `dipprobe`, `dipcodes` and `send`. `dipbaud`, `dipprobe` and `dipcodes` write their results to log files.
