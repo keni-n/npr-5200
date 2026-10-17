@@ -42,6 +42,7 @@ The result of punching "HELLO":
 - If the LINE lamp and the mode lamp blink, press the COPY button to clear the error. Then check the baud rate (DIP switches 5 to 8 and `--baud`) and the wiring.
 - If strange characters (such as `0xF0` or `0xF8`) are punched, the baud rate does not match.
 - If nothing is punched, check the DSR connection and the state of the LINE lamp.
+- If the machine goes OFFLINE during sending (the LINE lamp goes out, with no error blink), it may have detected that the paper tape has run out. It can detect this even when some tape is left, so replace it with a new roll. Press the LINE button to go back online.
 
 ## Requirements
 

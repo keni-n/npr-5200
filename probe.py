@@ -19,7 +19,7 @@ import serial
 
 BAUDS = [9600, 4800, 2400, 1200, 19200, 38400, 300, 600, 110, 57600, 115200]
 FORMATS = ["8N1", "7E1", "7O1", "8E1", "8O1", "7E2", "8N2", "5N1", "6N1", "7N1", "5N2", "6N2"]  # 5N2 は実機では1.5ストップビットで送出される
-FLOWS = ["xonxoff"]  # RTS/CTSはケーブル側でループバック済みのためXON/XOFFのみ
+FLOWS = ["xonxoff"]  # 既定は XON/XOFF のみ(前のケーブルは RTS/CTS をコネクタ内部で折り返し。StarTech のクロスケーブルでは --flow で変更可)
 PATTERN = bytes([0x55, 0xAA, 0x0D, 0x0A]) + b"ABC123\r\n" + bytes(range(0x30, 0x3A))
 
 

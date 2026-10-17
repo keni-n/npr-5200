@@ -34,6 +34,21 @@ For the conversion from D-sub 9 pin to 25 pin, the following cable worked.
 
 The product is a StarTech.com 3 m crossover (null modem) cable, D-Sub 9 pin female to D-Sub 25 pin male. It was connected and confirmed to work.
 
+With this cable, the machine's RTS (pin 4) goes to the PC's CTS, the machine's DTR (pin 20) to the PC's DSR, the machine's CTS (pin 5) to the PC's RTS, and the machine's DSR (pin 6) to the PC's DTR. The machine's DCD (pin 8) is not connected. Even so, with RTS=1 and DTR=1 (the pyserial default), 600 bytes of regular data were punched at 30 characters/second without going OFFLINE.
+
+### How the signals differ between the cables
+
+| | Previous cable (only TXD, RXD and GND; the rest looped back inside the connector) | StarTech crossover cable |
+|---|---|---|
+| CTS/DSR seen from the PC | Does not reflect the machine's state | CTS=1 and DSR=1 when online (0 when offline) |
+| The machine's CTS and DSR | Always active | Follow the PC's RTS and DTR |
+
+What was confirmed with the StarTech cable:
+
+- With the PC's DTR=0, the machine punches nothing (its DSR is connected to the PC's DTR). Use DTR=1.
+- No difference was found between RTS=0 and RTS=1.
+- `probe.py status` can be used to check the LINE state through CTS/DSR. This check is not possible with the previous cable.
+
 ### Notes
 
 1. **The machine is a DTE.** The machine transmits on pin 2 and receives on pin 3. This is the opposite of the direction used to connect to a modem; connect the PC's TXD to pin 3. As a check, with nothing connected, the voltage on pin 2 was about -10 V, which showed that the machine transmits on that pin. During continuous transmission it was about +7 V.
@@ -42,6 +57,7 @@ The product is a StarTech.com 3 m crossover (null modem) cable, D-Sub 9 pin fema
 4. **Hardware flow control cannot be used.** The machine does not send XON/XOFF (XOFF) either. For large data, slow down the sending speed on the PC side (`punch.py --cps 30`). At full speed, the machine's buffer overflows.
 5. **The error LED can be cleared with the COPY button.** If the baud rate or the format does not match, or the buffer overflows, the LINE lamp and the mode lamp (such as RANDOM) on the front panel blink. In this state the machine does not respond to anything you send. Pressing the COPY button on the front panel clears it. There is no need to power-cycle the machine.
 6. **The serial format is 8N1.** 8N2 also works. With 7E1 or 7O1 the characters are garbled, and with 8E1 or 8O1 the error LED lights up. Linux termios cannot handle 1.5 stop bits, so 1.5 could not be tested.
+7. **The machine goes OFFLINE when it detects that the paper tape has run out.** It can detect this even when some tape is left. The error LED does not blink; only the LINE lamp goes out. The position where it went OFFLINE varied each time and did not depend on the data or the cable. It stopped happening after switching to a new roll of tape. Press the LINE button to go back online.
 
 ## 2. DIP switches
 

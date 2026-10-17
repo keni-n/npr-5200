@@ -9,7 +9,8 @@ usage:
   --cps N                        # 送信速度を N 文字/秒に制限 (バッファあふれ対策)
   --leader N / --trailer N       # 前後に送り穴のみ(0x00)を N バイト
 DIP1=ON(DC1-DC4素通し・常時パンチON)・RANDOMモード前提。DIP1=OFFなら --dc を付ける。
-0x11,0x12,0x14,0x93 は機器が消費して穴が開かない(ISOモードでは --iso で 0x93 も可)。
+DIP1=OFF のときは 0x11,0x12,0x14,0x93 を機器が消費して穴が開かない(--dc でチェック)。
+DIP1=ON なら 0x93 も含めて全コードがパンチされる(実測)。ISOモードでは --iso で 0x93 を出せる。
 """
 import argparse, time
 import serial
