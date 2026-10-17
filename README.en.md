@@ -73,6 +73,8 @@ Defaults:
 
 When switch 1 is ON, DC1 to DC4 are not treated as control codes, and all 256 codes are punched as they are. When switch 1 is OFF, add `--dc`.
 
+However, even with SW1 ON, `0x1B` (ESC) stops being punched if you keep sending for a long time (about 12 seconds after the start at 30 characters/second). See [INVESTIGATION.en.md](INVESTIGATION.en.md) for details. Send data that contains `0x1B` in short pieces.
+
 If the baud rate or the format does not match, the LINE lamp and the mode lamp blink. Press the COPY button on the front panel to clear it.
 
 Detailed results for the wiring and the DIP switches are in [INVESTIGATION.en.md](INVESTIGATION.en.md).
@@ -142,7 +144,9 @@ The procedure is as follows.
 3. Press the LINE button to go ONLINE. The data that is read is displayed 16 bytes per line, with the position, hexadecimal and ASCII.
 4. It ends 10 seconds after the last data is received (change with `--idle`; 0 waits until Ctrl-C).
 
-XON/XOFF is disabled. If it were enabled, `0x11` and `0x13` in the data would not appear in the result. Bytes that arrive in the first second after start (a signal from opening the port) are displayed separately as "data right after start" and are not counted in the received bytes.
+XON/XOFF is disabled. If it were enabled, `0x11` and `0x13` in the data would not appear in the result. All received bytes are displayed and saved. Data that is only `0x00` (such as the signal from opening the port) is not used as the starting point of the end-of-input check (`--idle`) or of the speed calculation until some non-`0x00` data arrives.
+
+With `--timing`, the reading speed (characters/second) is displayed from the arrival times.
 
 ### probe.py: investigation tool
 

@@ -86,6 +86,28 @@ DC1 to DC4 act as control codes, so the following codes cannot be punched.
 
 0x13 is punched. To punch arbitrary codes, turn SW1 ON.
 
+### `0x1B` (ESC) stops being punched (SW1 ON)
+
+Even with SW1 ON, only `0x1B` stops being punched if you keep sending for a long time. This was confirmed with the tests below. The punched tape was read back with the reader and compared byte by byte (9600 baud, 8N1, `--leader 10`).
+
+| Data | Speed | Result for `0x1B` |
+|---|---|---|
+| `41 1B` x100 (200 bytes) | 30 characters/s | All 100 were punched |
+| `41` x450 followed by `41 1B` x30 | 30 characters/s | None of the 30 were punched |
+| `41` x19 + `1B`, x30 (600 bytes) | 30 characters/s | 17 were punched (up to byte 339 of the data), missing from byte 359 |
+| Same as above | 15 characters/s | 4 were punched (up to byte 79), missing from byte 99 (the same both times) |
+| `41 1B` x100 (200 bytes) | 15 characters/s | 43 pairs were punched (up to byte 86), missing after that |
+| Repeats of `0x00` to `0xFF` (2,048 bytes) | 30 characters/s | Punched up to byte 283 (3 of `0x1B`/`0x9B`), missing from byte 411 |
+
+What was found:
+
+- Only `0x1B`, and `0x9B` (`0x1B` with the 8th bit set), are missing. No other code lost a single byte.
+- Once it starts missing, every later `0x1B` is missing.
+- The position where it starts to be missing seems to be decided by the time since the start of sending: about 12 seconds at 30 characters/s (consistent with all the tests) and about 5.8 seconds at 15 characters/s. Twice the speed gives about twice the time. In bytes, that is about 350 bytes at 30 characters/s and about 86 bytes at 15 characters/s.
+- Sending the same data at the same speed started missing at the same position (it is reproducible).
+- The cause has not been confirmed. Only two speeds were tested, so the proportional relation is a hypothesis.
+- As a workaround, send data that contains `0x1B` in short pieces (within about 10 seconds at 30 characters/s). Whether a pause brings it back has not been checked.
+
 ### Differences between the modes (switches on the front panel)
 
 - **RANDOM**: punches the received bytes as they are.
@@ -150,6 +172,8 @@ Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON`
 
 - The 263 bytes of test data that were punched (the 7 bytes `HELLO` + CR/LF followed by the 256 bytes `0x00` to `0xFF`) were read back without losing a byte and in the same order. This includes `0x11` to `0x14` and `0x93`.
 - The data that was read had 15 `0x00` bytes before it and 2 `0x00` bytes after it. When punching, it was 10 before and 35 after. The reason for the difference has not been checked.
+- The reading speed was about 135 to 140 characters/s. Reading 2,048 bytes (about 14.6 seconds) gave 138.4 characters/s and was almost constant. Short readings gave 127 to 139 characters/s.
+- Even though 35 trailing `0x00` bytes were punched after the data, only 2 to 3 of them arrived when reading. On a tape with two pieces of data punched one after another (45 feed-hole-only bytes in between), reading stopped after the first one. To read the second one, the tape had to be set again by hand. The reason has not been checked.
 - A single `0x00` byte may arrive right after start. It is a signal from opening the port and is not part of the tape.
 - When `probe.py status` was run during reading, a single `0x00` was mixed into the received data (between `0xe4` and `0xe5`). Opening the port may be the cause, but this has not been checked. Do not open the port with other tools while reading.
 - If XON/XOFF is enabled, `0x11` and `0x13` in the data do not appear, so it is disabled for reading.
@@ -158,7 +182,10 @@ Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON`
 
 - The function of SW3 and SW4
 - The unconfirmed baud rate combinations
-- The reading speed of the reader, reading in EIA and ISO modes, and reading with a different baud rate or DIP switch setting
+- Reading in EIA and ISO modes, and reading with a different baud rate or DIP switch setting
+- The reason reading stops in the middle of the trailing feed holes
 - The reason the number of `0x00` bytes before and after the data that was read differs from what was punched
 - The exact amount of data that overflows the buffer (200 bytes at full speed was fine, but kilobytes overflowed)
-- ESC (0x1B) being dropped once (it could not be reproduced)
+- The cause of `0x1B` being dropped (see "`0x1B` (ESC) stops being punched" above; the earlier case of it being dropped once may be the same phenomenon)
+- The time at which `0x1B` starts to be dropped at speeds other than 30 and 15 characters/s
+- Whether a pause brings it back from the state where `0x1B` is dropped
