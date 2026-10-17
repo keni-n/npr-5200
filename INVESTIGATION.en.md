@@ -74,7 +74,7 @@ This is a close-up of the DIP switches (KSD08, switches 1 to 8).
 | SW | Function | Status |
 |---|---|---|
 | 1 | ON: DC1 to DC4 are passed through instead of acting as control codes. All 256 codes can be punched, and the punch is always on. OFF: DC2 (0x12) turns the punch on and DC4 (0x14) turns it off | Confirmed |
-| 2 | ON: the motor always runs. OFF: the motor runs when there is serial input and stops after a while | Confirmed |
+| 2 | ON: the motor always runs. OFF: the motor runs when there is serial input and stops after a while. When ON, `0x1B` is not punched (see "`0x1B` (ESC) stops being punched" below) | Confirmed |
 | 3, 4 | Unknown | Unconfirmed |
 | 5, 6, 7, 8 | Baud rate | Partly confirmed (see below) |
 
@@ -106,7 +106,19 @@ What was found:
 - The position where it starts to be missing seems to be decided by the time since the start of sending: about 12 seconds at 30 characters/s (consistent with all the tests) and about 5.8 seconds at 15 characters/s. Twice the speed gives about twice the time. In bytes, that is about 350 bytes at 30 characters/s and about 86 bytes at 15 characters/s.
 - Sending the same data at the same speed started missing at the same position (it is reproducible).
 - The cause has not been confirmed. Only two speeds were tested, so the proportional relation is a hypothesis.
-- As a workaround, send data that contains `0x1B` in short pieces (within about 10 seconds at 30 characters/s). Whether a pause brings it back has not been checked.
+- **A pause brings it back** (with SW2 OFF). After sending 450 bytes of `0x41` to get into the missing state, the machine was left idle with the port still open, and then `41 1B` was sent.
+
+  | Pause | `0x1B` |
+  |---|---|
+  | 0.5 s, 1 s, 2 s, 3 s | Not punched (0 of 10) |
+  | 5 s | Punched (10 of 10) |
+  | 10 s | Punched (30 of 30) |
+
+  The pause needed to bring it back is longer than 3 seconds and at most 5 seconds.
+- Reopening the port (without a pause) does not bring it back. Even when the port was closed and reopened right before every `0x1B`, all 30 were missing. The state of the PC's port is not the cause.
+- **With SW2 ON, `0x1B` is not punched.** With SW2 ON, sending `41 1B` x100 (30 characters/s) lost all 100 from the very start. Sending `41 1B` x30 after 450 bytes of `0x41`, or with a 10-second pause in between, also lost all 30 (the pause does not bring it back). With SW2 OFF, a pause brings it back.
+- The state of the motor is thought to be involved. However, the reason why, with SW2 OFF, the time until it starts to be missing is proportional to the sending speed (about 12 seconds at 30 characters/s, about 5.8 seconds at 15 characters/s) is not known.
+- As a workaround, to punch `0x1B`, turn SW2 OFF. In addition, at 30 characters/s, insert a pause of 5 seconds or more at least every 10 seconds or so, or send the data in short pieces.
 
 ### Differences between the modes (switches on the front panel)
 
@@ -188,4 +200,6 @@ Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON`
 - The exact amount of data that overflows the buffer (200 bytes at full speed was fine, but kilobytes overflowed)
 - The cause of `0x1B` being dropped (see "`0x1B` (ESC) stops being punched" above; the earlier case of it being dropped once may be the same phenomenon)
 - The time at which `0x1B` starts to be dropped at speeds other than 30 and 15 characters/s
-- Whether a pause brings it back from the state where `0x1B` is dropped
+- The shortest pause that brings it back (it is confirmed to be longer than 3 seconds and at most 5 seconds)
+- The cause (the details of the relation to the state of the motor)
+- Whether, with SW2 ON, codes other than `0x1B` are also not punched (only `0x41` and `0x1B` were checked)
