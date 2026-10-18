@@ -8,6 +8,8 @@ usage:
   --baud N                       # ボーレート(既定9600)
   --cps N                        # 送信速度を N 文字/秒に制限 (バッファあふれ対策)
   --leader N / --trailer N       # 前後に送り穴のみ(0x00)を N バイト
+先頭が 0x1B のとき(--dc なし)は、--leader 0 でも先頭に 0x00 を 1 個付ける
+(送信の最初のバイトが 0x1B だと、0x1B がパンチされない。前に 1 バイトあれば、パンチされる(実測))。
 DIP1=ON(DC1-DC4素通し・常時パンチON)・RANDOMモード前提。DIP1=OFFなら --dc を付ける。
 DIP1=OFF のときは 0x11,0x12,0x14,0x93 を機器が消費して穴が開かない(--dc でチェック)。
 DIP1=ON なら 0x93 も含めて全コードがパンチされる(実測)。ISOモードでは --iso で 0x93 を出せる。
@@ -42,6 +44,9 @@ bad = sorted({b for b in data if b in UNPUNCHABLE})
 if bad and not a.force:
     raise SystemExit(f"パンチできないコードを含む: {[hex(b) for b in bad]} (機器が消費する。--force で強制)")
 
+if not a.dc and a.leader == 0 and data[:1] == b"\x1b":
+    a.leader = 1
+    print("先頭が 0x1B のため、先頭に 0x00 を 1 個付ける(最初のバイトが 0x1B だとパンチされない)")
 s = serial.Serial(a.dev, a.baud, 8, "N", 1, xonxoff=True, timeout=0.5, write_timeout=60)
 payload = b"\x00" * a.leader + data + b"\x00" * a.trailer
 if a.dc:

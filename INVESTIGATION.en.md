@@ -118,7 +118,17 @@ What was found:
 - Reopening the port (without a pause) does not bring it back. Even when the port was closed and reopened right before every `0x1B`, all 30 were missing. The state of the PC's port is not the cause.
 - **With SW2 ON, `0x1B` is not punched.** With SW2 ON, sending `41 1B` x100 (30 characters/s) lost all 100 from the very start. Sending `41 1B` x30 after 450 bytes of `0x41`, or with a 10-second pause in between, also lost all 30 (the pause does not bring it back). With SW2 OFF, a pause brings it back.
 - The state of the motor is thought to be involved. However, the reason why, with SW2 OFF, the time until it starts to be missing is proportional to the sending speed (about 12 seconds at 30 characters/s, about 5.8 seconds at 15 characters/s) is not known.
-- As a workaround, to punch `0x1B`, turn SW2 OFF. In addition, at 30 characters/s, insert a pause of 5 seconds or more at least every 10 seconds or so, or send the data in short pieces.
+- **If the first byte of the transmission is `0x1B`, `0x1B` is missing** (SW2 OFF). This is the result when sending starts from the state where the machine is stopped.
+
+  | Data | `0x1B` |
+  |---|---|
+  | `1B 1B 1B` | All 3 were missing |
+  | `1B` x20 + `B` | All 20 were missing (only `B` was punched). `0x1B` x20 is about 0.67 seconds long at 30 characters/s |
+  | Any of `41` x1, x2, x3, x6, x10 or x20, + `1B` x20 + `B` | All 20 were punched in every case |
+  | Either `00` x1 or x2 + `1B` x20 + `B` | All 20 were punched in both cases |
+
+  If there is even one byte before it, `0x1B` is punched, whether that byte is `0x41` or `0x00`. Each was confirmed only once. There was also an observation that only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`, but this has not been explained.
+- As a workaround, start data that begins with `0x1B` with a 0x00 byte (when the data starts with `0x1B`, `punch.py` automatically adds one even with `--leader 0`). To punch `0x1B`, turn SW2 OFF. In addition, at 30 characters/s, insert a pause of 5 seconds or more at least every 10 seconds or so, or send the data in short pieces.
 
 ### Differences between the modes (switches on the front panel)
 
@@ -202,4 +212,6 @@ Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON`
 - The time at which `0x1B` starts to be dropped at speeds other than 30 and 15 characters/s
 - The shortest pause that brings it back (it is confirmed to be longer than 3 seconds and at most 5 seconds)
 - The cause (the details of the relation to the state of the motor)
+- Reproducibility of the first `0x1B` being missing and of it being punched when there is one byte before it (each was confirmed only once)
+- Why only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`
 - Whether, with SW2 ON, codes other than `0x1B` are also not punched (only `0x41` and `0x1B` were checked)
