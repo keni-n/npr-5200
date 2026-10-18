@@ -88,48 +88,70 @@ DC1 to DC4 act as control codes, so the following codes cannot be punched.
 
 ### `0x1B` (ESC) stops being punched (SW1 ON)
 
-Even with SW1 ON, only `0x1B` stops being punched if you keep sending for a long time. This was confirmed with the tests below. The punched tape was read back with the reader and compared byte by byte (9600 baud, 8N1, `--leader 10`).
+Even with SW1 ON, only `0x1B` and `0x9B` (`0x1B` with the 8th bit set) may not be punched. No other code was missing even once (confirmed by repeating `0x00` to `0xFF` for 2,048 bytes and by sending `0x01` to `0xFF` one code at a time). In the following tests, every tape was read back with the reader and compared byte by byte (9600 baud, 8N1, SW2 OFF; the effect of SW2 is described separately).
 
-| Data | Speed | Result for `0x1B` |
-|---|---|---|
-| `41 1B` x100 (200 bytes) | 30 characters/s | All 100 were punched |
-| `41` x450 followed by `41 1B` x30 | 30 characters/s | None of the 30 were punched |
-| `41` x19 + `1B`, x30 (600 bytes) | 30 characters/s | 17 were punched (up to byte 339 of the data), missing from byte 359 |
-| Same as above | 15 characters/s | 4 were punched (up to byte 79), missing from byte 99 (the same both times) |
-| `41 1B` x100 (200 bytes) | 15 characters/s | 43 pairs were punched (up to byte 86), missing after that |
-| Repeats of `0x00` to `0xFF` (2,048 bytes) | 30 characters/s | Punched up to byte 283 (3 of `0x1B`/`0x9B`), missing from byte 411 |
+How it goes missing falls into three cases, depending on the conditions.
 
-What was found:
+#### (1) The first byte of a transmission is `0x1B`
 
-- Only `0x1B`, and `0x9B` (`0x1B` with the 8th bit set), are missing. No other code lost a single byte.
-- Once it starts missing, every later `0x1B` is missing.
-- The position where it starts to be missing seems to be decided by the time since the start of sending: about 12 seconds at 30 characters/s (consistent with all the tests) and about 5.8 seconds at 15 characters/s. Twice the speed gives about twice the time. In bytes, that is about 350 bytes at 30 characters/s and about 86 bytes at 15 characters/s.
-- Sending the same data at the same speed started missing at the same position (it is reproducible).
-- The cause has not been confirmed. Only two speeds were tested, so the proportional relation is a hypothesis.
-- **A pause brings it back** (with SW2 OFF). After sending 450 bytes of `0x41` to get into the missing state, the machine was left idle with the port still open, and then `41 1B` was sent.
+If `0x1B` is sent as the first byte while the machine is stopped, `0x1B` is missing. It keeps going missing until a byte other than `0x1B` arrives.
 
-  | Pause | `0x1B` |
-  |---|---|
-  | 0.5 s, 1 s, 2 s, 3 s | Not punched (0 of 10) |
-  | 5 s | Punched (10 of 10) |
-  | 10 s | Punched (30 of 30) |
+| Data | Speed | Pause | Result for `0x1B` |
+|---|---|---|---|
+| `1B 1B 1B` | 30 characters/s | - | All 3 missing |
+| `1B` x20 + `B` | 30 characters/s | - | All 20 missing (only `B` was punched) |
+| `1B` x20 + `B`, 6 times | 60 characters/s | 12 s | All 20 missing every time (0 of 120) |
+| Any of `41` x1 to x20, or `00` x1, x2, + `1B` x20 + `B` | 30 characters/s | - | All 20 punched in every case (once each) |
 
-  The pause needed to bring it back is longer than 3 seconds and at most 5 seconds.
+- If there is even one byte before it, `0x1B` is punched, whether that byte is `0x41` or `0x00`.
+- Only `0x1B` and `0x9B` go missing as the first byte of a transmission. When each code from `0x01` to `0xFF` was sent as `c c c` (the same byte 3 times) every 15 seconds (30 characters/s, each time starting with the machine stopped), 253 codes were punched all 3 times, and the only ones missing were the 2 codes `0x1B` and `0x9B` (once each).
+
+#### (2) After the machine has been running for a while
+
+If you keep sending continuously, `0x1B` and `0x9B` go missing after a certain time. Once it starts, every later `0x1B` is missing. The faster the sending speed, the longer it takes to start. `41 1B` was sent continuously right after a marker byte to find where it starts (in two runs under the same conditions, the position where it started did not differ by even one pair).
+
+| Speed | Last `0x1B` punched | First `0x1B` missing | Time it starts |
+|---|---|---|---|
+| 10 characters/s | pair 27 | pair 28 | about 5.5 s |
+| 15 characters/s | pair 47 | pair 48 | about 6.3 s |
+| 20 characters/s | pair 75 | pair 76 | about 7.6 s |
+| 30 characters/s | pair 177 | pair 178 | about 11.9 s |
+| 60 characters/s | pair 1,799 (60 s, 1,800 pairs) | (only the last pair) | did not start |
+
+- At 60 characters/s, it did not start even after sending for 60 seconds (about 3,600 bytes). Repeating `0x00` to `0xFF` for 2,048 bytes at 60 characters/s also punched every byte correctly (at 30 characters/s, `0x1B` and `0x9B` went missing from the 411th byte).
+- In the continuous `41 1B` sending at 60 characters/s, only the `0x1B` of the last pair was missing, in both the 25-second and the 60-second tests. The reason is not known. It may be a phenomenon of `0x1B` being the last byte of the transmission (unconfirmed).
+- At 120 characters/s, punching stopped at about 678 bytes and the machine went into an error (the LINE LED blinked; cleared with the COPY button). The buffer is thought to have overflowed.
+
+#### (3) Pauses, and recovering from the missing state
+
+When sending stops, the machine stops and the missing state is cleared. However, how long a pause is needed is not clear.
+
+| Test | Result |
+|---|---|
+| Send `41` x450 to get into the missing state, pause 0.5, 1, 2 or 3 s, then `41 1B` x10 | 0 of 10 (does not recover) |
+| Same with a 5 s pause | 10 of 10 (recovers) |
+| Same with a 10 s pause | 30 of 30 (recovers) |
+| 6 s pause, then `41 1B 42`, 30 times (30 characters/s) | punched, missing, punched, missing... **every other one was missing** |
+| 6 s pause, then `41 c c c 42`, 10 times each (`0x9B` only, `0x1B` only) | Same: every other one was missing (counting the marker transmission as one, it alternates) |
+| Pause 0.5, 1, 2 or 3 s, then `41 1B 42`, 20 times each | Punched until 5 to 6 s passed, then always missing |
+| 10 s pause, then `41 1B 42`, 20 times | Punched all 20 times |
+
+- With a 6-second pause, it becomes unstable and every other one goes missing. This seems to be right at the boundary of the time the machine takes to stop (around 6 seconds). With a pause of 10 seconds or more, it was punched every time.
+- The earlier "it is punched if there is a byte before it" (the form with one preceding byte before `41 1B`) may have landed on the punched side of this alternation, so it has to be considered separately from (1).
+
+#### Other findings
+
+- **With SW2 ON, `0x1B` is not punched.** Sending `41 1B` x100 (30 characters/s) lost all 100 from the very start. Sending `41 1B` x30 after 450 bytes of `0x41`, or with a 10-second pause in between, also lost all 30. The motor running all the time seems to coincide with the missing state.
 - Reopening the port (without a pause) does not bring it back. Even when the port was closed and reopened right before every `0x1B`, all 30 were missing. The state of the PC's port is not the cause.
-- **With SW2 ON, `0x1B` is not punched.** With SW2 ON, sending `41 1B` x100 (30 characters/s) lost all 100 from the very start. Sending `41 1B` x30 after 450 bytes of `0x41`, or with a 10-second pause in between, also lost all 30 (the pause does not bring it back). With SW2 OFF, a pause brings it back.
-- The state of the motor is thought to be involved. However, the reason why, with SW2 OFF, the time until it starts to be missing is proportional to the sending speed (about 12 seconds at 30 characters/s, about 5.8 seconds at 15 characters/s) is not known.
-- **If the first byte of the transmission is `0x1B`, `0x1B` is missing** (SW2 OFF). This is the result when sending starts from the state where the machine is stopped.
+- There was also an observation that only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`, but this has not been explained.
+- The cause is not known. A relation to the state of the motor (the time since it started running) is suspected, but that is a hypothesis.
 
-  | Data | `0x1B` |
-  |---|---|
-  | `1B 1B 1B` | All 3 were missing |
-  | `1B` x20 + `B` | All 20 were missing (only `B` was punched). `0x1B` x20 is about 0.67 seconds long at 30 characters/s |
-  | Any of `41` x1, x2, x3, x6, x10 or x20, + `1B` x20 + `B` | All 20 were punched in every case |
-  | Either `00` x1 or x2 + `1B` x20 + `B` | All 20 were punched in both cases |
+#### Workarounds
 
-  If there is even one byte before it, `0x1B` is punched, whether that byte is `0x41` or `0x00`. Each was confirmed only once. There was also an observation that only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`, but this has not been explained.
-- **Only `0x1B` (and `0x9B`) lose the first byte.** Each code from `0x01` to `0xFF` was sent as `c c c` (the same byte three times), every 15 seconds (SW2 OFF, 30 characters/s, each time starting with the machine stopped). Reading the punched tape back showed that 253 codes were punched all 3 times, and no code became `c c` (only the first byte missing). All 3 were missing for only 2 codes, `0x1B` and `0x9B`. This is the result of a single run.
-- As a workaround, start data that begins with `0x1B` with a 0x00 byte (when the data starts with `0x1B`, `punch.py` automatically adds one even with `--leader 0`). To punch `0x1B`, turn SW2 OFF. In addition, at 30 characters/s, insert a pause of 5 seconds or more at least every 10 seconds or so, or send the data in short pieces.
+- Start data that begins with `0x1B` with a 0x00 byte (when the data starts with `0x1B`, `punch.py` automatically adds one even with `--leader 0`).
+- To punch `0x1B`, turn SW2 OFF.
+- Send at 60 characters/s (the default of `punch.py`). At 60 characters/s, nothing went missing even in continuous sending for 60 seconds (about 3,600 bytes).
+- When sending for a long time at 30 characters/s or less, split the data and insert a pause of 10 seconds or more before the time it starts going missing (about 5 to 12 seconds).
 
 ### Differences between the modes (switches on the front panel)
 
@@ -210,9 +232,9 @@ Confirmed at 9600 baud, 8N1, with the DIP switches `ON,OFF,ON,ON,OFF,OFF,OFF,ON`
 - The reason the number of `0x00` bytes before and after the data that was read differs from what was punched
 - The exact amount of data that overflows the buffer (200 bytes at full speed was fine, but kilobytes overflowed)
 - The cause of `0x1B` being dropped (see "`0x1B` (ESC) stops being punched" above; the earlier case of it being dropped once may be the same phenomenon)
-- The time at which `0x1B` starts to be dropped at speeds other than 30 and 15 characters/s
-- The shortest pause that brings it back (it is confirmed to be longer than 3 seconds and at most 5 seconds)
-- The cause (the details of the relation to the state of the motor)
-- Reproducibility of the first `0x1B` being missing and of it being punched when there is one byte before it (each was confirmed only once)
+- How the time it takes to start going missing is decided by the speed (the start was measured at 10, 15, 20 and 30 characters/s, and does not fit a simple formula)
+- Buffer overflow and `0x1B` going missing at speeds faster than 60 and slower than 120 characters/s
+- The shortest pause that brings it back (the results for 5 s and 6 s do not agree; the time the machine takes to stop appears to be around 6 seconds)
+- Why only the last `0x1B` goes missing in continuous sending at 60 characters/s
 - Why only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`
 - Whether, with SW2 ON, codes other than `0x1B` are also not punched (only `0x41` and `0x1B` were checked)

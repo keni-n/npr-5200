@@ -73,7 +73,7 @@ Defaults:
 
 When switch 1 is ON, DC1 to DC4 are not treated as control codes, and all 256 codes are punched as they are. When switch 1 is OFF, add `--dc`.
 
-However, even with SW1 ON, `0x1B` at the very start of the data is not punched unless there is a byte before it (`punch.py` automatically adds one `0x00` at the start). Also, `0x1B` (ESC) stops being punched if you keep sending for a long time (about 12 seconds after the start at 30 characters/second). See [INVESTIGATION.en.md](INVESTIGATION.en.md) for details. To punch `0x1B`, turn SW2 OFF (with SW2 ON, `0x1B` is not punched). In addition, send with a pause of 5 seconds or more at least every 10 seconds or so (the shortest pause is longer than 3 seconds and at most 5 seconds).
+However, even with SW1 ON, `0x1B` at the very start of the data is not punched unless there is a byte before it (`punch.py` automatically adds one `0x00` at the start). Also, `0x1B` (ESC) stops being punched if you keep sending for a long time (about 12 seconds after the start at 30 characters/second; the faster you send, the later it starts, and at 60 characters/second it did not start in 60 seconds). See [INVESTIGATION.en.md](INVESTIGATION.en.md) for details. To punch `0x1B`, turn SW2 OFF (with SW2 ON, `0x1B` is not punched). Keep the sending speed at the default of 60 characters/second. When sending for a long time at 30 characters/second or less, split the data and insert a pause of 10 seconds or more between the pieces.
 
 If the baud rate or the format does not match, the LINE lamp and the mode lamp blink. Press the COPY button on the front panel to clear it.
 
@@ -96,14 +96,14 @@ Main options:
 |---|---|---|
 | `--dev` | `/dev/ttyUSB0` | Serial device |
 | `--baud` | 9600 | Baud rate |
-| `--cps` | 30 | Upper limit of the sending speed (characters/second). 0 means no limit |
+| `--cps` | 60 | Upper limit of the sending speed (characters/second). 0 means no limit |
 | `--leader` | 0 | Number of 0x00 bytes added at the start. If the data starts with `0x1B`, one is added automatically even when this is 0 |
 | `--trailer` | 35 | Number of 0x00 bytes added at the end |
 | `--dc` | off | Wrap the data in DC2/DC4 (when DIP switch 1 is OFF) |
 | `--iso` | off | For ISO mode. Converts 0x93 to 0x13 |
 | `--force` | off | Send even if the data contains codes that cannot be punched |
 
-If you send a large amount of data at full speed without `--cps`, the machine's buffer overflows and the error LED lights up. Keep the default of 30 characters/second.
+If you send a large amount of data at full speed without `--cps`, the machine's buffer overflows and the error LED lights up. The default of 60 characters/second was confirmed not to overflow the buffer for continuous sending up to 3,600 bytes (it overflowed at 120 characters/second).
 
 ### dotpunch.py: punch text as a dot pattern
 
