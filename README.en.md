@@ -41,6 +41,7 @@ The result of punching "HELLO":
 **If it does not work**
 - If the LINE lamp and the mode lamp blink, press the COPY button to clear the error. Then check the baud rate (DIP switches 5 to 8 and `--baud`) and the wiring.
 - If strange characters (such as `0xF0` or `0xF8`) are punched, the baud rate does not match.
+- While sending long data, the machine may go OFFLINE with the LINE lamp blinking (an error) even though paper tape is left. The buffer may have overflowed. Press the COPY button to clear it, then lower `--cps` or make `--chunk` shorter and send again (this happened in one case when about 3,000 bytes or more were sent without splitting at 60 characters/second).
 - If nothing is punched, check the DSR connection and the state of the LINE lamp.
 - If the machine goes OFFLINE during sending (the LINE lamp goes out, with no error blink), it may have detected that the paper tape has run out. It can detect this even when some tape is left, so replace it with a new roll. Press the LINE button to go back online.
 
@@ -73,7 +74,7 @@ Defaults:
 
 When switch 1 is ON, DC1 to DC4 are not treated as control codes, and all 256 codes are punched as they are. When switch 1 is OFF, add `--dc`.
 
-However, even with SW1 ON, `0x1B` at the very start of the data is not punched unless there is a byte before it (`punch.py` automatically adds one `0x00` at the start). Also, `0x1B` (ESC) stops being punched if you keep sending for a long time (about 12 seconds after the start at 30 characters/second; the faster you send, the later it starts, and at 60 characters/second it did not start in 60 seconds). See [INVESTIGATION.en.md](INVESTIGATION.en.md) for details. To punch `0x1B`, turn SW2 OFF (with SW2 ON, `0x1B` is not punched). Keep the sending speed at the default of 60 characters/second. By default, long data is split every 3,000 bytes with a 12-second pause. No 0x00 is added at the start of a piece (while the machine does not stop, `0x1B` at the start of a piece was not missing either). When sending at 30 characters/second or less, make `--chunk` shorter than the time it starts going missing.
+However, even with SW1 ON, `0x1B` (or `0x9B`) at the very start of the data is not punched unless there is a byte before it (`punch.py` automatically adds one `0x00` at the start). Also, `0x1B` (ESC) stops being punched if you keep sending for a long time (about 12 seconds after the start at 30 characters/second; the faster you send, the later it starts, and at 60 characters/second it did not start in 60 seconds). See [INVESTIGATION.en.md](INVESTIGATION.en.md) for details. To punch `0x1B`, turn SW2 OFF (with SW2 ON, `0x1B` is not punched). Keep the sending speed at the default of 60 characters/second. By default, long data is split every 3,000 bytes with a 12-second pause. No 0x00 is added at the start of a piece (while the machine does not stop, `0x1B` at the start of a piece was not missing either). When sending at 30 characters/second or less, make `--chunk` shorter than the time it starts going missing.
 
 If the baud rate or the format does not match, the LINE lamp and the mode lamp blink. Press the COPY button on the front panel to clear it.
 
@@ -99,7 +100,7 @@ Main options:
 | `--chunk` | 3000 | Split the data into pieces of N bytes and wait `--pause` seconds between them. 0 disables it |
 | `--pause` | 12 | Pause between pieces (seconds) |
 | `--cps` | 60 | Upper limit of the sending speed (characters/second). 0 means no limit |
-| `--leader` | 0 | Number of 0x00 bytes added at the start. If the data starts with `0x1B`, one is added automatically even when this is 0 |
+| `--leader` | 0 | Number of 0x00 bytes added at the start. If the data starts with `0x1B` or `0x9B`, one is added automatically even when this is 0 |
 | `--trailer` | 35 | Number of 0x00 bytes added at the end |
 | `--dc` | off | Wrap the data in DC2/DC4 (when DIP switch 1 is OFF) |
 | `--iso` | off | For ISO mode. Converts 0x93 to 0x13 |
