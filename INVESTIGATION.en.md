@@ -128,6 +128,7 @@ What was found:
   | Either `00` x1 or x2 + `1B` x20 + `B` | All 20 were punched in both cases |
 
   If there is even one byte before it, `0x1B` is punched, whether that byte is `0x41` or `0x00`. Each was confirmed only once. There was also an observation that only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`, but this has not been explained.
+- **Only `0x1B` (and `0x9B`) lose the first byte.** Each code from `0x01` to `0xFF` was sent as `c c c` (the same byte three times), every 15 seconds (SW2 OFF, 30 characters/s, each time starting with the machine stopped). Reading the punched tape back showed that 253 codes were punched all 3 times, and no code became `c c` (only the first byte missing). All 3 were missing for only 2 codes, `0x1B` and `0x9B`. This is the result of a single run.
 - As a workaround, start data that begins with `0x1B` with a 0x00 byte (when the data starts with `0x1B`, `punch.py` automatically adds one even with `--leader 0`). To punch `0x1B`, turn SW2 OFF. In addition, at 30 characters/s, insert a pause of 5 seconds or more at least every 10 seconds or so, or send the data in short pieces.
 
 ### Differences between the modes (switches on the front panel)
