@@ -116,10 +116,13 @@ If you keep sending continuously, `0x1B` and `0x9B` go missing after a certain t
 | 15 characters/s | pair 47 | pair 48 | about 6.3 s |
 | 20 characters/s | pair 75 | pair 76 | about 7.6 s |
 | 30 characters/s | pair 177 | pair 178 | about 11.9 s |
-| 60 characters/s | pair 1,799 (60 s, 1,800 pairs) | (only the last pair) | did not start |
+| 45 characters/s | pair 1,586 | pair 1,587 | about 70.5 s (about 3,170 bytes) |
+| 60 characters/s | pair 1,799 (60 s, 1,800 pairs) | (only the last pair) | did not start (up to 60 s) |
 
 - At 60 characters/s, it did not start even after sending for 60 seconds (about 3,600 bytes). Repeating `0x00` to `0xFF` for 2,048 bytes at 60 characters/s also punched every byte correctly (at 30 characters/s, `0x1B` and `0x9B` went missing from the 411th byte).
 - In the continuous `41 1B` sending at 60 characters/s, only the `0x1B` of the last pair was missing, in both the 25-second and the 60-second tests. The reason is not known. It may be a phenomenon of `0x1B` being the last byte of the transmission (unconfirmed).
+- In another test (300 seconds), continuous sending at 60 characters/s was punched up to about 3,030 bytes, and then the machine went into an error (paper tape remained, and the LINE LED blinked; cleared with the COPY button). `0x1B` did not go missing in the 3,030 bytes that were punched. Since 3,602 bytes could also be sent at the same 60 characters/s, the number of bytes or the time alone cannot explain the condition for the error.
+- At 45 characters/s, 300 seconds (about 13,500 bytes) could be sent without an error. `0x1B` started going missing at about 70.5 seconds, and after that all of them were missing to the end (all `41` were punched).
 - At 120 characters/s, punching stopped at about 678 bytes and the machine went into an error (the LINE LED blinked; cleared with the COPY button). The buffer is thought to have overflowed.
 
 #### (3) Pauses, and recovering from the missing state
@@ -146,11 +149,16 @@ When sending stops, the machine stops and the missing state is cleared. However,
 - There was also an observation that only 5 of 7 `0x1B` were punched when sending `41 1B` x7 + `42`, but this has not been explained.
 - The cause is not known. A relation to the state of the motor (the time since it started running) is suspected, but that is a hypothesis.
 
+#### Split sending (`punch.py --chunk`)
+
+`1B 41` x5000 (10,000 bytes) was sent at 60 characters/s, waiting 12 seconds every 3,000 bytes. The machine never stopped, and the result read back matched the original data exactly once the `0x00` bytes were removed (all 5,000 `0x1B`). The result was the same both when a `0x00` was added at the start of each piece and when it was not (once each). However, since the machine did not stop (it kept punching the buffered data during the pauses), `0x1B` at the start of a piece after the machine has stopped has not been confirmed. For safety, `punch.py` adds one `0x00` at the start of a piece that starts with `0x1B`.
+
 #### Workarounds
 
 - Start data that begins with `0x1B` with a 0x00 byte (when the data starts with `0x1B`, `punch.py` automatically adds one even with `--leader 0`).
 - To punch `0x1B`, turn SW2 OFF.
-- Send at 60 characters/s (the default of `punch.py`). At 60 characters/s, nothing went missing even in continuous sending for 60 seconds (about 3,600 bytes).
+- Send at 60 characters/s (the default of `punch.py`).
+- Split long data every 3,000 bytes and wait 12 seconds (the `punch.py` default: `--chunk 3000 --pause 12`). Continuous sending without splitting at 60 characters/s can cause an error or `0x1B` going missing.
 - When sending for a long time at 30 characters/s or less, split the data and insert a pause of 10 seconds or more before the time it starts going missing (about 5 to 12 seconds).
 
 ### Differences between the modes (switches on the front panel)
