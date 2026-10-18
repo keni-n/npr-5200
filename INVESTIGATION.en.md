@@ -151,7 +151,7 @@ When sending stops, the machine stops and the missing state is cleared. However,
 
 #### Split sending (`punch.py --chunk`)
 
-`1B 41` x5000 (10,000 bytes) was sent at 60 characters/s, waiting 12 seconds every 3,000 bytes. The machine never stopped, and the result read back matched the original data exactly once the `0x00` bytes were removed (all 5,000 `0x1B`). The result was the same both when a `0x00` was added at the start of each piece and when it was not (once each). However, since the machine did not stop (it kept punching the buffered data during the pauses), `0x1B` at the start of a piece after the machine has stopped has not been confirmed. For safety, `punch.py` adds one `0x00` at the start of a piece that starts with `0x1B`.
+`1B 41` x5000 (10,000 bytes) was sent at 60 characters/s, waiting 12 seconds every 3,000 bytes. The machine never stopped, and the result read back matched the original data exactly once the `0x00` bytes were removed (all 5,000 `0x1B`). The result was the same both when a `0x00` was added at the start of each piece and when it was not (once each). However, since the machine did not stop (it kept punching the buffered data during the pauses), `0x1B` at the start of a piece after the machine has stopped has not been confirmed. `punch.py` does not add a `0x00` at the start of a piece. If the pause is long enough for the machine to stop (for example, with a long `--pause`), `0x1B` at the start may go missing.
 
 #### Workarounds
 

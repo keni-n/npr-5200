@@ -70,9 +70,7 @@ if a.dc:
     s.write(b"\x12")
 for n, c in enumerate(chunks):
     if n > 0:
-        time.sleep(a.pause)  # 実測: 休止すると 0x1B が欠ける状態が戻る
-        if not a.dc and c[:1] and c[0] in LOST_FIRST:
-            c = b"\x00" + c
+        time.sleep(a.pause)  # 実測: 休止すると 0x1B が欠ける状態が戻る。機器が止まらない間は、区切りの先頭の 0x1B も欠けない(実測)
     buf = c
     if n == 0:
         buf = b"\x00" * a.leader + buf
